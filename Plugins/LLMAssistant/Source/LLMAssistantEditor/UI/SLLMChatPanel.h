@@ -6,6 +6,7 @@
 class SScrollBox;
 class SMultiLineEditableTextBox;
 class SButton;
+class STextBlock;
 class FLLMService;
 
 class SLLMChatPanel : public SCompoundWidget
@@ -19,17 +20,18 @@ public:
 private:
     FReply OnSendClicked();
     void AddChatBubble(const FString& Message, bool bIsUser);
-
-    // API 응답 수신 콜백
-    void OnLLMResponse(bool bSuccess, const FString& Response, const FString& Error);
-
-    // 입력 잠금/해제
     void SetInputEnabled(bool bEnabled);
+
+    // 스트리밍 콜백
+    void OnStreamChunk(const FString& DeltaText);
+    void OnStreamComplete(bool bSuccess, const FString& Error);
 
     TSharedPtr<SScrollBox> ChatScrollBox;
     TSharedPtr<SMultiLineEditableTextBox> InputTextBox;
     TSharedPtr<SButton> SendButton;
-
-    // LLM 서비스 (대화 관리 + API 호출)
     TSharedPtr<FLLMService> LLMService;
+
+    // 스트리밍 중 AI 응답 버블의 텍스트 블록 (실시간 갱신용)
+    TSharedPtr<STextBlock> StreamingTextBlock;
+    FString StreamingFullText;
 };

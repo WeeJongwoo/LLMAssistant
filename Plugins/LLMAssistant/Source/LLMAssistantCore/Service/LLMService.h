@@ -4,33 +4,37 @@
 #include "LLMMessage.h"
 #include "ILLMProvider.h"
 
-// UI에 알려주는 콜백: 성공 여부, AI 응답 텍스트, 에러 메시지
 DECLARE_DELEGATE_ThreeParams(FOnChatResponseReady, bool, const FString&, const FString&);
 
-/**
- * 대화 서비스 — UI와 Provider 사이의 중간 레이어.
- * 대화 히스토리를 관리하고, 메시지를 JSON으로 변환하여 Provider에 전달.
- */
+// 스트리밍용 콜백
+DECLARE_DELEGATE_OneParam(FOnChatStreamChunk, const FString& /*DeltaText*/);
+DECLARE_DELEGATE_TwoParams(FOnChatStreamComplete, bool /*bSuccess*/, const FString& /*Error*/);
+
 class LLMASSISTANTCORE_API FLLMService
 {
 public:
     FLLMService();
     ~FLLMService();
 
-    /** 유저 메시지를 보내고 AI 응답을 받음 */
+    /** 비-스트리밍 전송 */
     void SendMessage(const FString& UserMessage, FOnChatResponseReady OnReady);
 
-    /** 대화 히스토리 초기화 */
-    void ClearHistory();
+    /** 스트리밍 전송 */
+    void SendMessageStreaming(
+        const FString& UserMessage,
+        FOnChatStreamChunk OnChunk,
+        FOnChatStreamComplete OnComplete);
 
-    /** 현재 요청 진행 중인지 */
+    void ClearHistory();
     bool IsRequestInProgress() const { return bIsRequesting; }
 
 private:
-    /** 히스토리를 JSON 문자열로 변환 */
     FString ConvertHistoryToJson() const;
 
     TArray<FLLMMessage> ConversationHistory;
     TUniquePtr<ILLMProvider> Provider;
     bool bIsRequesting = false;
+
+    // 스트리밍 중 AI 응답을 누적하기 위한 버퍼
+    FString StreamingResponseBuffer;
 };
