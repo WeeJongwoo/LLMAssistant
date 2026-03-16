@@ -1,0 +1,23 @@
+﻿{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "0.1.0",
+	"FriendlyName": "LLM Assistant",
+	"Description": "에디터 내 LLM 채팅 어시스턴트",
+	"Category": "Editor",
+	"CreatedBy": "Jongwoo",
+	"EnabledByDefault": true,
+	"CanContainContent": false,
+	"Modules": [
+		{
+			"Name": "LLMAssistant",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "LLMAssistantEditor",
+			"Type": "Editor",
+			"LoadingPhase": "PostEngineInit"
+		}
+	]
+}
