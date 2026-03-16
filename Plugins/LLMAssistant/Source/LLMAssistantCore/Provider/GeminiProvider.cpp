@@ -21,7 +21,7 @@ void FGeminiProvider::SendRequest(const FString& MessagesJson, FOnLLMResponseCom
     }
 
     TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = FHttpModule::Get().CreateRequest();
-    Request->SetURL(Settings->EndpointURL);
+    Request->SetURL(Settings->GetResolvedEndpointURL());
     Request->SetVerb(TEXT("POST"));
     Request->SetHeader(TEXT("Content-Type"), TEXT("application/json"));
     Request->SetHeader(TEXT("Authorization"),
@@ -88,7 +88,7 @@ void FGeminiProvider::SendStreamingRequest(
     SSEBuffer.Empty();
 
     TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = FHttpModule::Get().CreateRequest();
-    Request->SetURL(Settings->EndpointURL);
+    Request->SetURL(Settings->GetResolvedEndpointURL());
     Request->SetVerb(TEXT("POST"));
     Request->SetHeader(TEXT("Content-Type"), TEXT("application/json"));
     Request->SetHeader(TEXT("Authorization"),
