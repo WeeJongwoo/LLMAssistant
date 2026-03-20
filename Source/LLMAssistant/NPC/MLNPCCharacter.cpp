@@ -3,6 +3,7 @@
 
 #include "MLNPCCharacter.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Components/CapsuleComponent.h"
 
 
 // Sets default values
@@ -17,6 +18,13 @@ AMLNPCCharacter::AMLNPCCharacter()
 	MoveComp->NavAgentProps.bCanCrouch = true;
 	MoveComp->GetNavAgentPropertiesRef().bCanJump = true;
 
+	CrouchHalfHight = 50.0f;
+
+	TraceStartForCrouch = CreateDefaultSubobject<USceneComponent>(TEXT("TraceStartForCrouch"));
+	TraceStartForJump = CreateDefaultSubobject<USceneComponent>(TEXT("TraceStartForJump"));
+
+	TraceStartForCrouch->SetupAttachment(RootComponent);
+	TraceStartForJump->SetupAttachment(RootComponent);
 }
 
 // Called when the game starts or when spawned
@@ -28,6 +36,12 @@ void AMLNPCCharacter::BeginPlay()
 	if (World)
 	{
 		StartLocation = GetActorLocation();
+		UCapsuleComponent* Capsule = GetCapsuleComponent();
+		if (Capsule)
+		{
+			DefaultCapsuleHalfHight = Capsule->GetScaledCapsuleHalfHeight();
+			DefaultCapsuleRelativeLocation = Capsule->GetRelativeLocation();
+		}
 	}
 }
 
@@ -71,6 +85,20 @@ void AMLNPCCharacter::ResetToStart()
 
 	if (GetCharacterMovement()->IsCrouching())
 		UnCrouch();
+}
+
+void AMLNPCCharacter::Crouch(bool bClientSimulation)
+{
+	Super::Crouch(bClientSimulation);
+
+	GetCapsuleComponent()->SetCapsuleHalfHeight(CrouchHalfHight);
+}
+
+void AMLNPCCharacter::UnCrouch(bool bClientSimulation)
+{
+	Super::UnCrouch(bClientSimulation);
+
+	GetCapsuleComponent()->SetCapsuleHalfHeight(DefaultCapsuleHalfHight);
 }
 
 
