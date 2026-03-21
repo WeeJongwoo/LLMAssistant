@@ -3,6 +3,7 @@
 
 #include "NPCMLManager.h"
 
-
-
-
+UNPCMLManager::UNPCMLManager()
+{
+	MaxAgentNum = 20;
+}

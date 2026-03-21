@@ -17,8 +17,7 @@ AMLNPCCharacter::AMLNPCCharacter()
 	UCharacterMovementComponent* MoveComp = GetCharacterMovement();
 	MoveComp->NavAgentProps.bCanCrouch = true;
 	MoveComp->GetNavAgentPropertiesRef().bCanJump = true;
-
-	CrouchHalfHight = 50.0f;
+	MoveComp->bCanWalkOffLedgesWhenCrouching = true;
 
 	TraceStartForCrouch = CreateDefaultSubobject<USceneComponent>(TEXT("TraceStartForCrouch"));
 	TraceStartForJump = CreateDefaultSubobject<USceneComponent>(TEXT("TraceStartForJump"));
@@ -32,49 +31,64 @@ void AMLNPCCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 	
-	UWorld* World = GetWorld();
-	if (World)
-	{
-		StartLocation = GetActorLocation();
-		UCapsuleComponent* Capsule = GetCapsuleComponent();
-		if (Capsule)
-		{
-			DefaultCapsuleHalfHight = Capsule->GetScaledCapsuleHalfHeight();
-			DefaultCapsuleRelativeLocation = Capsule->GetRelativeLocation();
-		}
-	}
+	StartLocation = GetActorLocation();
+
+	UCapsuleComponent* Capsule = GetCapsuleComponent();
+	StandingTraceHeight = Capsule->GetScaledCapsuleHalfHeight();
+	JumpTraceHeight = StandingTraceHeight + TraceStartForJump->GetRelativeLocation().Z;
+	CrouchTraceHeight = StandingTraceHeight + TraceStartForCrouch->GetRelativeLocation().Z;
 }
 
 void AMLNPCCharacter::ExecuteAction(ENPCAction Action, const FVector& MoveDirection)
 {
 	UCharacterMovementComponent* MoveComp = GetCharacterMovement();
 
-	if (MoveComp)
+	//UE_LOG(LogTemp, Warning, TEXT("ExecuteAction: %d, Dir: %s, Speed: %f"), (int32)Action, *MoveDirection.ToString(), GetCharacterMovement()->MaxWalkSpeed);
+
+	/*UE_LOG(LogTemp, Warning, TEXT("[JumpDebug] Action=%d IsFalling=%d IsOnGround=%d CanJump=%d bWantsCrouch=%d MovementMode=%d Vel.Z=%.1f"),
+		(int32)Action,
+		MoveComp->IsFalling(),
+		MoveComp->IsMovingOnGround(),
+		CanJump(),
+		MoveComp->bWantsToCrouch,
+		(int32)MoveComp->MovementMode,
+		MoveComp->Velocity.Z);*/
+
+	if (!MoveComp)
 	{
-		switch (Action)
+		return;
+	}
+
+	if (MoveComp->IsFalling())
+	{
+		if (Action == ENPCAction::Jump)
 		{
-		case ENPCAction::Walk:
-			if (MoveComp->IsCrouching())
-			{
-				MoveComp->UnCrouch();
-			}
-			AddMovementInput(MoveDirection);
-			break;
-		case ENPCAction::Jump:
-			if (MoveComp->IsCrouching())
-			{
-				MoveComp->UnCrouch();
-			}
+			MoveComp->bWantsToCrouch = false;
 			Jump();
-			AddMovementInput(MoveDirection);
-			break;
-		case ENPCAction::ClouchWalk:
-			Crouch();
-			AddMovementInput(MoveDirection);
-			break;
-		default:
-			break;
 		}
+		AddMovementInput(MoveDirection);
+		return;
+	}
+
+	StopJumping();
+
+	switch (Action)
+	{
+	case ENPCAction::Walk:
+		MoveComp->bWantsToCrouch = false;
+		AddMovementInput(MoveDirection);
+		break;
+	case ENPCAction::Jump:
+		MoveComp->bWantsToCrouch = false;
+		Jump();
+		AddMovementInput(MoveDirection);
+		break;
+	case ENPCAction::ClouchWalk:
+		MoveComp->bWantsToCrouch = true;
+		AddMovementInput(MoveDirection);
+		break;
+	default:
+		break;
 	}
 }
 
@@ -85,20 +99,6 @@ void AMLNPCCharacter::ResetToStart()
 
 	if (GetCharacterMovement()->IsCrouching())
 		UnCrouch();
-}
-
-void AMLNPCCharacter::Crouch(bool bClientSimulation)
-{
-	Super::Crouch(bClientSimulation);
-
-	GetCapsuleComponent()->SetCapsuleHalfHeight(CrouchHalfHight);
-}
-
-void AMLNPCCharacter::UnCrouch(bool bClientSimulation)
-{
-	Super::UnCrouch(bClientSimulation);
-
-	GetCapsuleComponent()->SetCapsuleHalfHeight(DefaultCapsuleHalfHight);
 }
 
 

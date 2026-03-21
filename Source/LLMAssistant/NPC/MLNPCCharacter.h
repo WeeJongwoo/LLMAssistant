@@ -30,26 +30,24 @@ protected:
 
 	FVector StartLocation;
 
-	float DefaultCapsuleHalfHight;
-	float CrouchHalfHight;
-
 	UPROPERTY(EditAnywhere)
 	TObjectPtr<USceneComponent> TraceStartForCrouch;
 
 	UPROPERTY(EditAnywhere)
 	TObjectPtr<USceneComponent> TraceStartForJump;
 
+
+	float StandingTraceHeight = 0.f;
+	float JumpTraceHeight = 0.f;           
+	float CrouchTraceHeight = 0.f;         
+
 public:	
 	// Called every frame
 	void ExecuteAction(ENPCAction Action, const FVector& MoveDirection);
 	void ResetToStart();
 
-	virtual void Crouch(bool bClientSimulation = false) override;
-	virtual void UnCrouch(bool bClientSimulation = false) override;
+	float GetStandingTraceHeight() const { return StandingTraceHeight; }
+	float GetJumpTraceHeight() const { return JumpTraceHeight; }
+	float GetCrouchTraceHeight() const { return CrouchTraceHeight; }
 
-	FVector GetTraceStartForCrouch() const { return TraceStartForCrouch->GetComponentLocation(); }
-	FVector GetTraceStartForJump() const { return TraceStartForJump->GetComponentLocation(); }
-
-	FVector GetRelativeTraceStartForCrouch() const { return TraceStartForCrouch->GetRelativeLocation(); }
-	FVector GetRelativeTraceStartForJump() const { return TraceStartForJump->GetRelativeLocation(); }
 };

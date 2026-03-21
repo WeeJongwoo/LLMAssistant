@@ -6,6 +6,8 @@
 #include "LearningAgentsObservations.h"
 #include "LearningAgentsActions.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "DrawDebugHelpers.h"
+#include "Components/CapsuleComponent.h"
 
 
 void UNPCInteractor::SpecifyAgentObservation_Implementation(FLearningAgentsObservationSchemaElement& OutObservationSchemaElement, ULearningAgentsObservationSchema* InObservationSchema)
@@ -18,8 +20,8 @@ void UNPCInteractor::SpecifyAgentObservation_Implementation(FLearningAgentsObser
 	Elements.Add(TEXT("IsCrouching"), ULearningAgentsObservations::SpecifyBoolObservation(InObservationSchema, TEXT("IsCrouching")));
 	Elements.Add(TEXT("IsOnGround"), ULearningAgentsObservations::SpecifyBoolObservation(InObservationSchema, TEXT("IsOnGround")));
 	Elements.Add(TEXT("FrontWallDist"), ULearningAgentsObservations::SpecifyFloatObservation(InObservationSchema, TEXT("FrontWallDist")));
-	Elements.Add(TEXT("FrontWallHeight"), ULearningAgentsObservations::SpecifyFloatObservation(InObservationSchema, TEXT("FrontWallHeight")));
-	Elements.Add(TEXT("FrontWallHeight"), ULearningAgentsObservations::SpecifyFloatObservation(InObservationSchema, TEXT("FrontCrouchHeight")));
+	Elements.Add(TEXT("TopHit"), ULearningAgentsObservations::SpecifyBoolObservation(InObservationSchema, TEXT("TopHit")));
+	Elements.Add(TEXT("DownHit"), ULearningAgentsObservations::SpecifyBoolObservation(InObservationSchema, TEXT("DownHit")));
 
 	OutObservationSchemaElement = ULearningAgentsObservations::SpecifyStructObservation(InObservationSchema, Elements, TEXT("NPCObservation"));
 }
@@ -27,7 +29,7 @@ void UNPCInteractor::SpecifyAgentObservation_Implementation(FLearningAgentsObser
 void UNPCInteractor::GatherAgentObservation_Implementation(FLearningAgentsObservationObjectElement& OutObservationObjectElement, ULearningAgentsObservationObject* InObservationObject, const int32 AgentId)
 {
 	AMLNPCCharacter* NPC = Cast<AMLNPCCharacter>(GetAgent(AgentId));
-	if (!NPC || IsValid(GoalActor))
+	if (!NPC || !GoalActor)
 	{
 		return;
 	}
@@ -35,6 +37,7 @@ void UNPCInteractor::GatherAgentObservation_Implementation(FLearningAgentsObserv
 	const FVector Loc = NPC->GetActorLocation();
 	const FVector GoalLoc = GoalActor->GetActorLocation();
 	const FVector ToGoal = GoalLoc - Loc;
+	const float FootZ = Loc.Z - NPC->GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
 
 	// ── 목표 방향 각도 계산 ──
 	const FVector Forward = NPC->GetActorForwardVector();
@@ -44,60 +47,82 @@ void UNPCInteractor::GatherAgentObservation_Implementation(FLearningAgentsObserv
 	const float Angle = FMath::Atan2(Cross, Dot);
 
 	// ── 전방 장애물 레이캐스트 ──
-	const FVector ToGoalFlat = FVector(ToGoal.X, ToGoal.Y, 0.f).GetSafeNormal();
 
-	const FVector RayStart = Loc;
+	const FVector RayStart = FVector(Loc.X, Loc.Y, FootZ + NPC->GetStandingTraceHeight());
+	const FVector RayEnd = RayStart + Forward * TraceRange;
+	UWorld* World = GetWorld();
 
-	const FVector RayEnd = RayStart + Forward * 500.f;
+	FCollisionQueryParams Query;
+	Query.AddIgnoredActor(NPC);
+	Query.bTraceComplex = false;
 
 	FHitResult Hit;
-	const bool bHit = GetWorld()->LineTraceSingleByChannel(Hit, RayStart, RayEnd, ECC_WorldStatic);
+	const bool bHit = GetWorld()->LineTraceSingleByChannel(Hit, RayStart, RayEnd, ECC_WorldStatic, Query);
 
-	float WallHeight = 0.f;
-	float CrouchHight = 0.0f;
-	if (bHit)
+	bool bIsDownHit = false;
+	bool bISTopHit = false;
+
+	/*if (bHit)
 	{
-		FHitResult TopHit;
-		const FVector TopStart = Hit.ImpactPoint + FVector(0.f, 0.f, NPC->GetRelativeTraceStartForJump().X);
-		const FVector TopEnd = Hit.ImpactPoint;
-		bool bISTopHit = GetWorld()->LineTraceSingleByChannel(TopHit, TopStart, TopEnd, ECC_WorldStatic);
-		if (bISTopHit)
-		{
-			WallHeight = TopHit.ImpactPoint.Z;
-		}
-		else
-		{
-			FHitResult DownHit;
-			const FVector DownStart = Hit.ImpactPoint + FVector(0.f, 0.f, NPC->GetRelativeTraceStartForCrouch().X);
-			const FVector DownEnd = Hit.ImpactPoint;
-			bool bIsDownHit = GetWorld()->LineTraceSingleByChannel(DownHit, DownStart, DownEnd, ECC_WorldStatic);
-			if (bIsDownHit)
-			{
-				CrouchHight = DownHit.ImpactPoint.Z;
-			}
-		}
-	}
+		DrawDebugLine(World, RayStart, RayEnd, FColor::Cyan, false, 3.0f);
+		UE_LOG(LogTemp, Warning, TEXT("Center Hit / Hight: %f"), RayStart.Z);
+	}*/
+
+	FHitResult TopHit;
+	const FVector TopStart = FVector(Loc.X, Loc.Y, FootZ + NPC->GetJumpTraceHeight());
+	const FVector TopEnd = TopStart + (Forward * TraceRange);
+	bISTopHit = GetWorld()->LineTraceSingleByChannel(TopHit, TopStart, TopEnd, ECC_WorldStatic, Query);
+	/*if (bISTopHit)
+	{
+		DrawDebugLine(World, TopStart, TopEnd, FColor::Green, false, 3.0f);
+		UE_LOG(LogTemp, Warning, TEXT("Top Hit / Hight: %f"), TopEnd.Z);
+	}*/
+
+	FHitResult DownHit;
+	const FVector DownStart = FVector(Loc.X, Loc.Y, FootZ + NPC->GetCrouchTraceHeight());
+	const FVector DownEnd = DownStart + (Forward * TraceRange);
+	bIsDownHit = GetWorld()->LineTraceSingleByChannel(DownHit, DownStart, DownEnd, ECC_WorldStatic, Query);
+	/*if (bIsDownHit)
+	{
+		DrawDebugLine(World, DownStart, DownEnd, FColor::Red, false, 3.0f);
+		UE_LOG(LogTemp, Warning, TEXT("Down Hit / Hight: %f"), DownStart.Z);
+	}*/
+	
 
 	TMap<FName, FLearningAgentsObservationObjectElement> Elements;
 
 	Elements.Add(TEXT("GoalDist"),ULearningAgentsObservations::MakeFloatObservation(InObservationObject, ToGoal.Size(), 2000.f, TEXT("GoalDist")));
 	Elements.Add(TEXT("GoalAngle"), ULearningAgentsObservations::MakeAngleObservation(InObservationObject, Angle, 0.0f, TEXT("GoalAngle")));
-	Elements.Add(TEXT("Speed"), ULearningAgentsObservations::MakeFloatObservation(InObservationObject, ToGoal.Size(), 2000.f, TEXT("Speed")));
+	Elements.Add(TEXT("Speed"), ULearningAgentsObservations::MakeFloatObservation(InObservationObject, NPC->GetVelocity().Size(), 2000.f, TEXT("Speed")));
 	Elements.Add(TEXT("IsCrouching"), ULearningAgentsObservations::MakeBoolObservation(InObservationObject, NPC->GetCharacterMovement()->IsCrouching(), TEXT("IsCrouching")));
 	Elements.Add(TEXT("IsOnGround"), ULearningAgentsObservations::MakeBoolObservation(InObservationObject, NPC->GetCharacterMovement()->IsMovingOnGround(), TEXT("IsOnGround")));
 	Elements.Add(TEXT("FrontWallDist"), ULearningAgentsObservations::MakeFloatObservation(InObservationObject, bHit ? Hit.Distance : 500.f, 500.f, TEXT("FrontWallDist")));
-	Elements.Add(TEXT("FrontWallHeight"), ULearningAgentsObservations::MakeFloatObservation(InObservationObject, WallHeight, 300, TEXT("FrontWallHeight")));
-	Elements.Add(TEXT("FrontWallHeight"), ULearningAgentsObservations::MakeFloatObservation(InObservationObject, CrouchHight, 100, TEXT("FrontCrouchHeight")));
+	Elements.Add(TEXT("TopHit"), ULearningAgentsObservations::MakeBoolObservation(InObservationObject, bISTopHit, TEXT("TopHit")));
+	Elements.Add(TEXT("DownHit"), ULearningAgentsObservations::MakeBoolObservation(InObservationObject, bIsDownHit, TEXT("DownHit")));
 
 	OutObservationObjectElement = ULearningAgentsObservations::MakeStructObservation(InObservationObject, Elements, TEXT("NPCObservation"));
 }
 
 void UNPCInteractor::SpecifyAgentAction_Implementation(FLearningAgentsActionSchemaElement& OutActionSchemaElement, ULearningAgentsActionSchema* InActionSchema)
 {
-
+	OutActionSchemaElement = ULearningAgentsActions::SpecifyExclusiveDiscreteAction(InActionSchema, 3, TArray<float>(), TEXT("Movement"));
 }
 
 void UNPCInteractor::PerformAgentAction_Implementation(const ULearningAgentsActionObject* InActionObject, const FLearningAgentsActionObjectElement& InActionObjectElement, const int32 AgentId)
 {
+	int32 ActionIndex = 0;
+	ULearningAgentsActions::GetExclusiveDiscreteAction(ActionIndex, InActionObject, InActionObjectElement, TEXT("Movement"));
 
+	//UE_LOG(LogTemp, Warning, TEXT("Agent %d Action: %d"), AgentId, ActionIndex);
+
+	const ENPCAction Action = StaticCast<ENPCAction>(ActionIndex);
+	AMLNPCCharacter* NPC = Cast<AMLNPCCharacter>(GetAgent(AgentId));
+	if (!NPC || !GoalActor)
+	{
+		return;
+	}
+
+	const FVector Dir = (GoalActor->GetActorLocation() - NPC->GetActorLocation()).GetSafeNormal();
+
+	NPC->ExecuteAction(Action, Dir);
 }
