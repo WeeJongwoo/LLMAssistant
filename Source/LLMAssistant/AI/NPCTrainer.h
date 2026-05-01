@@ -26,7 +26,7 @@ protected:
 	// 에이전트별 스텝 카운터
 	TMap<int32, int32> StepCountMap;
 
-	static constexpr int32 MaxSteps = 1000;
+	static constexpr int32 MaxSteps = 1500;
 
 	TWeakObjectPtr<ANPCLearningManager> LearningManager;
 

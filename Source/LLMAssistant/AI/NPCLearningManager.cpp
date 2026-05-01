@@ -51,7 +51,7 @@ void ANPCLearningManager::BeginPlay()
 		}
 	}
 
-	if (bInferenceMode)
+	if (bInferenceMode || bLoadSnapshotOnBeginPlay)
 	{
 		LoadNetworks();
 	}
@@ -106,6 +106,12 @@ void ANPCLearningManager::Tick(float DeltaTime)
 void ANPCLearningManager::SaveNetworks()
 {
 	const FString BasePath = FPaths::ProjectSavedDir() / SnapshotDir;
+
+	IFileManager& FileManager = IFileManager::Get();
+	if (!FileManager.DirectoryExists(*BasePath))
+	{
+		FileManager.MakeDirectory(*BasePath, /*Tree=*/true);
+	}
 
 	if (Policy)
 	{

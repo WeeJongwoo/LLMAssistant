@@ -73,6 +73,9 @@ protected:
 	bool bInferenceMode = false;  // true면 추론 모드로 시작
 
 	UPROPERTY(EditAnywhere, Category = "Learning")
+	bool bLoadSnapshotOnBeginPlay = false;  // 훈련 이어서 시작할 때 체크
+
+	UPROPERTY(EditAnywhere, Category = "Learning")
 	FString SnapshotDir = TEXT("NPCSnapshots");  // 저장 디렉토리
 
 	UPROPERTY(EditAnywhere, Category = "Learning")
